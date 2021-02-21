@@ -14,16 +14,21 @@
   <title>{% block title %} {% endblock %}</title>
   </head>
   <body>
-    <div class="fixed-header">
-	    <a href="/" style="color:white"><h2 style="text-align:center">Yet Another Spotify Recommender</h2></a>
-    </div>
+
+    <nav class="navbar navbar-dark bg-dark justify-content-center">
+	    <ul class="navbar-nav">
+		    <li class="nav-item">
+			    <a class="nav-link" href="/" style="color:white"><h2>Yet Another Spotify Recommender</h2></a>
+		    </li>
+	    </ul>
+    </nav>
     <div class="container">
         {% block content %} {% endblock %}
     </div>
 
-    <div class="fixed-footer">
+    <footer class="fixed-footer">
 	    <div class="container">Vim is the best text editor. Jupyterlab-vim is the best plugin for Jupyter Lab. Vim gives extra points on quizzes.</div>
-	    <div class="container">This site only stores your most recently played songs on Spotify. Nothing else.</div>
+	    <div class="container">This site only stores your most recently played songs on Spotify and your Spotify user id. Nothing else.</div>
     </div>
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->

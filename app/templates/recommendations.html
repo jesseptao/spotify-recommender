@@ -1,0 +1,40 @@
+{% extends 'main.html' %}
+
+{% block content %}
+
+<br>
+<br>
+<h2 style="text-align:center;">Songs That are Similar to What You Listen To</h2>
+
+{% for i in similar_track_names %}
+<div class='row justify-content-center'>
+	<a href={{i.artists[0].uri}}>
+		<div class='col'>
+			<b>{{i.artists[0].name}}</b>
+		</div>
+	</a>
+	<a href={{i.uri}}>
+		<div class='col'>
+			<span>{{i.name}}</span>
+		</div>
+	</a>
+</div>
+{% endfor %}
+<br>
+<h2 style="text-align:center;">Songs Completely Different From What You Listen To</h2>
+{% for i in unsimilar_track_names %}
+<div class='row justify-content-center'>
+	<a href={{i.artists[0].uri}}>
+		<div class='col'>
+			<b>{{i.artists[0].name}}</b>
+		</div>
+	</a>
+	<a href={{i.uri}}>
+		<div class='col'>
+			<span>{{i.name}}</span>
+		</div>
+	</a>
+</div>
+{% endfor %}
+
+{% endblock %}

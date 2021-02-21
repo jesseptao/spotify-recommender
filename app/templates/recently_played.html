@@ -1,0 +1,29 @@
+{% extends 'main.html' %}
+
+{% block content %}
+
+<br>
+<br>
+<h2 style = "text-align:center;">Here are Your Most Recently Played Songs</h2>
+
+{% for track in recently_played %}
+<div class='row justify-content-center'>
+	<a href={{track.track.external_urls.spotify}}>
+		<div class='col'>
+			<span>{{track.track.name}}</span>
+		</div>
+	</a>
+</div>
+<br>
+{% endfor %}
+<br>
+<a class="btn btn-danger btn-lg mx-auto d-block" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+	DANGEROUS BUTTON (DO NOT PRESS!)
+</a>
+<br>
+<a class="btn btn-success btn-lg mx-auto d-block" href="/recommendations">
+	<i class="fa fa-spotify"></i>
+	Get Recommendations Based on These Songs
+</a>
+
+{% endblock %}
