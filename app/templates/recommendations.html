@@ -6,7 +6,7 @@
 <br>
 <h2 style="text-align:center;">Songs That are Similar to What You Listen To</h2>
 
-{% for i in similar_track_names %}
+{% for i in result[0] %}
 <div class='row justify-content-center'>
 	<a href={{i.artists[0].uri}}>
 		<div class='col'>
@@ -21,8 +21,23 @@
 </div>
 {% endfor %}
 <br>
+<p style="text-align:center;"> Give these recommendations a score: </p>
+<form method="POST" action="/submit">
+	<center>
+	<select class="form-select" aria-label="Default select example" name="score">
+		<option selected>Select a score</option>
+		<option value=1>1</option>
+		<option value=2>2</option>
+		<option value=3>3</option>
+		<option value=4>4</option>
+		<option value=5>5</option>
+	</select>
+	<input type="submit" class="btn btn-success" value="Submit"></input>
+	</center>
+</form>
+<br>
 <h2 style="text-align:center;">Songs Completely Different From What You Listen To</h2>
-{% for i in unsimilar_track_names %}
+{% for i in result[1] %}
 <div class='row justify-content-center'>
 	<a href={{i.artists[0].uri}}>
 		<div class='col'>
@@ -36,5 +51,20 @@
 	</a>
 </div>
 {% endfor %}
+<br>
+<p style="text-align:center;"> Give these recommendations a score: </p>
+<form method="POST" action="/submit_unfamiliar">
+        <center>
+        <select class="form-select" aria-label="Default select example" name="score">
+                <option selected>Select a score</option>
+                <option value=1>1</option>
+                <option value=2>2</option>
+                <option value=3>3</option>
+                <option value=4>4</option>
+                <option value=5>5</option>
+        </select>
+        <input type="submit" class="btn btn-success" value="Submit"></input>
+        </center>
+</form>
 
 {% endblock %}

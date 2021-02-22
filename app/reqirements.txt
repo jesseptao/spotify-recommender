@@ -1,0 +1,11 @@
+tensorflow
+Flask
+Flask-Session
+spotipy
+uuid
+numpy==1.19.2
+pandas
+scikit-learn
+flask-mysqldb
+rq
+redis

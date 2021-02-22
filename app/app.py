@@ -23,6 +23,7 @@ import os
 from flask import Flask, session, request, redirect, render_template
 from flask_session import Session
 import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 import uuid
 import json
 import numpy as np
@@ -30,6 +31,10 @@ import pandas as pd
 from time import sleep
 import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
+from flask_mysqldb import MySQL
+from rq import Queue
+from rq.job import Job
+from worker import conn
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
@@ -38,7 +43,14 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(64)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = './.flask_session/'
+app.config['MYSQL_HOST'] = '192.168.1.221'
+app.config['MYSQL_USER'] = 'yasr'
+app.config['MYSQL_PASSWORD'] = 'ILoveDSI-!!!^'
+app.config['MYSQL_DB'] = 'yasr'
 Session(app)
+
+mysql = MySQL(app)
+q = Queue(connection=conn)
 
 caches_folder = './.spotify_caches/'
 if not os.path.exists(caches_folder):
@@ -71,8 +83,8 @@ def generate_user_tracks(user_tracks):
     user_df['artist_uri'] = artist_uri
     user_df['artist'] = artist_name
 
-    cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
-    auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+    #cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
+    auth_manager = SpotifyClientCredentials()
     spotify = spotipy.Spotify(auth_manager = auth_manager)
 
     for i in range(len(user_df)):
@@ -94,6 +106,46 @@ def is_empty(any_structure):
     else:
         print('Structure is empty.')
         return True
+
+def get_recommendations(user_id):
+    #cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
+    #auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+    #if not auth_manager.validate_token(cache_handler.get_cached_token()):
+    #    return redirect('/')
+
+    auth_manager = SpotifyClientCredentials()
+    spotify = spotipy.Spotify(auth_manager = auth_manager)
+    with open(f'/media/jesse/Number3/json/{user_id}.json') as read:
+        user_tracks = json.load(read)
+    user_df = generate_user_tracks(user_tracks)
+    user_features_list = []
+    for i in range(len(user_df)):
+        user_features_list.append(spotify.audio_features(user_df.iloc[i]['track_uri'])[0])
+        sleep(0.02)
+    user_features_list = [i for i in user_features_list if is_empty(i) == False]
+    user_features_df = pd.DataFrame(user_features_list)
+    combined_features_df = pd.concat([new_features_df, user_features_df])
+    combined_features_df.reset_index(drop = True, inplace = True)
+    combined_features_df.drop(['type', 'id', 'duration_ms', 'time_signature', 'track_href',
+                  'analysis_url'], axis = 1, inplace = True)
+    compare_df = combined_features_df[['danceability', 'energy', 'loudness', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo', 'mode']]
+    mms = MinMaxScaler()
+    compare_df_sc = mms.fit_transform(compare_df)
+    compare_df_sc = pd.DataFrame(compare_df_sc, columns = compare_df.columns)
+    distances = compute_distance(compare_df_sc, compare_df_sc)
+    distances_df = pd.DataFrame(distances.numpy(), index = combined_features_df['uri'], columns = combined_features_df['uri'])
+    distances_df.loc['score'] = distances_df.tail(len(user_features_list)).sum()
+    similar_5 = distances_df.loc['score'][:-len(user_features_list)].sort_values()[0:5].index
+    unsimilar_5 = distances_df.loc['score'][:-len(user_features_list)].sort_values(ascending = False)[0:5].index
+    similar_track_names = []
+    unsimilar_track_names = []
+    distances_df.loc['score'] = 0
+    for i in similar_5:
+        similar_track_names.append(spotify.track(i))
+    for i in unsimilar_5:
+        unsimilar_track_names.append(spotify.track(i))
+
+    return [similar_track_names, unsimilar_track_names]
 
 @app.route('/')
 def index():
@@ -144,45 +196,81 @@ def recently_played():
         json.dump(recently_played, outfile)
     return render_template('recently_played.html', recently_played = recently_played["items"])
 
-@app.route('/recommendations')
-def recommendations():
-    cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
-    auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
-    if not auth_manager.validate_token(cache_handler.get_cached_token()):
-        return redirect('/')
+@app.route('/prepare_recommendations', methods=['POST'])
+def prepare_recommendations():
+    if request.method == "POST":
+        from app import get_recommendations
+        cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
+        auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+        if not auth_manager.validate_token(cache_handler.get_cached_token()):
+            return redirect('/')
 
-    spotify = spotipy.Spotify(auth_manager=auth_manager)
-    with open(f'/media/jesse/Number3/json/{spotify.me()["id"]}.json') as read:
-        user_tracks = json.load(read)
-    user_df = generate_user_tracks(user_tracks)
-    user_features_list = []
-    for i in range(len(user_df)):
-        user_features_list.append(spotify.audio_features(user_df.iloc[i]['track_uri'])[0])
-        sleep(0.02)
-    user_features_list = [i for i in user_features_list if is_empty(i) == False]
-    user_features_df = pd.DataFrame(user_features_list)
-    combined_features_df = pd.concat([new_features_df, user_features_df])
-    combined_features_df.reset_index(drop = True, inplace = True)
-    combined_features_df.drop(['type', 'id', 'duration_ms', 'time_signature', 'track_href',
-                  'analysis_url'], axis = 1, inplace = True)
-    compare_df = combined_features_df[['danceability', 'energy', 'loudness', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo', 'mode']]
-    mms = MinMaxScaler()
-    compare_df_sc = mms.fit_transform(compare_df)
-    compare_df_sc = pd.DataFrame(compare_df_sc, columns = compare_df.columns)
-    distances = compute_distance(compare_df_sc, compare_df_sc)
-    distances_df = pd.DataFrame(distances.numpy(), index = combined_features_df['uri'], columns = combined_features_df['uri'])
-    distances_df.loc['score'] = distances_df.tail(len(user_features_list)).sum()
-    similar_5 = distances_df.loc['score'][:-len(user_features_list)].sort_values()[0:5].index
-    unsimilar_5 = distances_df.loc['score'][:-len(user_features_list)].sort_values(ascending = False)[0:5].index
-    similar_track_names = []
-    unsimilar_track_names = []
-    distances_df.loc['score'] = 0
-    for i in similar_5:
-        similar_track_names.append(spotify.track(i))
-    for i in unsimilar_5:
-        unsimilar_track_names.append(spotify.track(i))
+        spotify = spotipy.Spotify(auth_manager=auth_manager)
+        user_id = spotify.me()["id"]
+        job = q.enqueue_call(get_recommendations, args=(user_id,), result_ttl = 900)
+        position = len(q)
+        return render_template('prepare_recommendations.html', position = position, id = job.id)
 
-    return render_template('recommendations.html', user_df = user_df, similar_track_names = similar_track_names, unsimilar_track_names = unsimilar_track_names)
+
+@app.route('/recommendations/<job_key>', methods = ['GET'])
+def recommendations(job_key):
+    job = Job.fetch(job_key, connection = conn)
+    position = len(q)
+    while not (job.is_finished):
+        position = len(q)
+        return render_template('prepare_recommendations.html', position = len(q) + 1, id = job.id)
+        sleep(2)
+    results = job.result
+    return render_template('recommendations.html', result = results)
+
+@app.route('/submit', methods=["GET", "POST"])
+def submit():
+    if request.method == "POST":
+
+        cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
+        auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+        if not auth_manager.validate_token(cache_handler.get_cached_token()):
+            return redirect('/')
+
+        spotify = spotipy.Spotify(auth_manager=auth_manager)
+        user_id = spotify.me()["id"]
+        score = request.form['score']
+        score = int(score)
+        print(type(score))
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO similar_scores(user_id, scores) VALUES (%s, %s)", (user_id, score))
+        mysql.connection.commit()
+        cur.close()
+        return render_template('submit.html')
+    
+    return render_template('submit.html')
+
+@app.route('/submit_unfamiliar', methods=["GET", "POST"])
+def submit_unfamiliar():
+    if request.method == "POST":
+
+        cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
+        auth_manager = spotipy.oauth2.SpotifyOAuth(cache_handler=cache_handler)
+        if not auth_manager.validate_token(cache_handler.get_cached_token()):
+            return redirect('/')
+
+        spotify = spotipy.Spotify(auth_manager=auth_manager)
+        user_id = spotify.me()["id"]
+        score = request.form['score']
+        score = int(score)
+        print(type(score))
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO unsimilar_score(user_id, scores) VALUES (%s, %s)", (user_id, score))
+        mysql.connection.commit()
+        cur.close()
+        return render_template('submit.html')
+    
+    return render_template('submit.html')
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('500.html'), 500
+
 '''
 Following lines allow application to be run more conveniently with
 `python app.py` (Make sure you're using python3)
