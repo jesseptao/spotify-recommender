@@ -207,18 +207,21 @@ def prepare_recommendations():
 
         spotify = spotipy.Spotify(auth_manager=auth_manager)
         user_id = spotify.me()["id"]
-        job = q.enqueue_call(get_recommendations, args=(user_id,), result_ttl = 900)
-        position = job.get_position()
-        return render_template('prepare_recommendations.html', position = position, id = job.id)
+        job = q.enqueue(get_recommendations, args=(user_id,), result_ttl = 900)
+        position = len(q)
+        return render_template('prepare_recommendations.html', position = position + 1, id = job.id)
 
 
 @app.route('/recommendations/<job_key>', methods = ['GET'])
 def recommendations(job_key):
     job = Job.fetch(job_key, connection = conn)
-    position = len(q)
+    job_ids_list = q.job_ids
     while not (job.is_finished):
-        position = job.get_position()
-        return render_template('prepare_recommendations.html', position = len(q) + 1, id = job.id)
+        if job_key in job_ids_list:
+            position = job_ids.index(job_key)
+        else:
+            position = 0
+        return render_template('prepare_recommendations.html', position = position + 1, id = job.id)
         sleep(2)
     results = job.result
     return render_template('recommendations.html', result = results)
