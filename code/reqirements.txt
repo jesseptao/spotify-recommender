@@ -10,3 +10,15 @@ flask-mysqldb
 rq
 redis
 gunicorn
+requests
+bs4
+matplotlib
+tqdm
+ipython
+jupyterlab
+librosa
+numba
+pycuda
+fastdtw
+linmdtw
+spotdl
