@@ -208,7 +208,7 @@ def prepare_recommendations():
         spotify = spotipy.Spotify(auth_manager=auth_manager)
         user_id = spotify.me()["id"]
         job = q.enqueue_call(get_recommendations, args=(user_id,), result_ttl = 900)
-        position = len(q)
+        position = job.get_position()
         return render_template('prepare_recommendations.html', position = position, id = job.id)
 
 
@@ -217,7 +217,7 @@ def recommendations(job_key):
     job = Job.fetch(job_key, connection = conn)
     position = len(q)
     while not (job.is_finished):
-        position = len(q)
+        position = job.get_position()
         return render_template('prepare_recommendations.html', position = len(q) + 1, id = job.id)
         sleep(2)
     results = job.result
