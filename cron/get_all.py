@@ -36,23 +36,26 @@ client_credentials_manager = SpotifyClientCredentials(client_id = cid,
 sp = spotipy.Spotify(client_credentials_manager = client_credentials_manager)
 
 popularity_list = []
+genre_list = []
 for i in tqdm(range(len(new_tracks))):
      popularity_list.append(sp.artist(new_tracks.iloc[i]['artist_uri'])['popularity'])
-     sleep(0.02)
+     popularity_list.append(sp.artist(new_tracks.iloc[i]['artist_uri'])['genres'])
+     sleep(0.2)
 new_tracks['popularity'] = popularity_list
+new_tracks['artist_genres'] = genre_list
 
 new_tracks.to_csv('../data/tracks_with_popularity.csv', index = False)
 
 new_tracks_popularity = pd.read_csv('../data/tracks_with_popularity.csv')
 
 # drop songs by artists with more than 70 popularity
-new_tracks_popularity = new_tracks_popularity[new_tracks_popularity['popularity'] <= 70]
+new_tracks_popularity = new_tracks_popularity[new_tracks_popularity['popularity'] <= 70].copy()
 
 # only need to get user features after getting new_track features once
 new_features_list = []
 for i in tqdm(range(len(new_tracks))):
-    new_features_list.append(sp.audio_features(new_tracks_popularity.iloc[i]['track_uri'])[0])
-    sleep(0.02)
+    new_features_list.append(sp.audio_features(new_tracks_popularity.iloc[i]['track_uri']))
+    sleep(0.1)
 
 def is_empty(any_structure):
     if any_structure:

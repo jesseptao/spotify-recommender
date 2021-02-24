@@ -216,7 +216,7 @@ Below are some of the steps I can think of to improve YASR:
 
 Thanks to the following people and resources for making this project possible:
 
-- My amazing DSI instructors at General Assembly: Charlie Rice, Hovanes Gasparian, John Hazard, and Sophie Tabac
+- My amazing DSI instructors at General Assembly: Charlie Rice, Hovanes Gasparian, John Hazard, Prasoon Karmacharya, and Sophie Tabac
 - The DSIR-1116 cohort for being a fun and amazing group of people that gave me the motivation to make it through the course and build this project. 
 - [This article from Wikipedia on Fourier transforms.](https://en.wikipedia.org/wiki/Fourier_transform)
 - [This article from Wikipedia on short-time Fourier transforms.](https://en.wikipedia.org/wiki/Short-time_Fourier_transform)

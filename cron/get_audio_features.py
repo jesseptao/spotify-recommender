@@ -27,7 +27,7 @@ new_tracks = new_tracks[new_tracks['popularity'] <= 70]
 new_features_list = []
 for i in tqdm(range(len(new_tracks))):
     new_features_list.append(sp.audio_features(new_tracks.iloc[i]['track_uri'])[0])
-    sleep(0.02)
+    sleep(0.5)
 
 def is_empty(any_structure):
     if any_structure:
