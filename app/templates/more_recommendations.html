@@ -1,0 +1,38 @@
+{% extends 'main.html' %}
+
+{% block content %}
+
+<br>
+<br>
+<h2 style="text-align:center"> Lower Scores are More Similar To What You Listen To </h2>
+<br>
+<table id="morerecommendations" class="table table-bordered">
+<thead>
+<tr>
+<th>Artist</th>
+<th>Song Name</th>
+<th>Artist's Genres</th>
+<th>Similarity Score</th>
+</tr>
+</thead>
+<tbody>
+{% for i in result[2] %}
+<tr>
+<td>
+	<a href={{i[2]}}>
+			{{i[1]}}
+	</a>
+</td>
+<td>
+	<a href={{i[5]}}>
+			{{i[3]}}
+	</a>
+</td>
+<td>{{i[4]}}</td>
+<td>{{i[0]}}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

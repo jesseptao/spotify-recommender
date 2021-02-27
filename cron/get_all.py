@@ -39,8 +39,8 @@ popularity_list = []
 genre_list = []
 for i in tqdm(range(len(new_tracks))):
      popularity_list.append(sp.artist(new_tracks.iloc[i]['artist_uri'])['popularity'])
-     popularity_list.append(sp.artist(new_tracks.iloc[i]['artist_uri'])['genres'])
-     sleep(0.2)
+     genre_list.append(sp.artist(new_tracks.iloc[i]['artist_uri'])['genres'])
+     sleep(0.13)
 new_tracks['popularity'] = popularity_list
 new_tracks['artist_genres'] = genre_list
 
@@ -54,8 +54,11 @@ new_tracks_popularity = new_tracks_popularity[new_tracks_popularity['popularity'
 # only need to get user features after getting new_track features once
 new_features_list = []
 for i in tqdm(range(len(new_tracks))):
-    new_features_list.append(sp.audio_features(new_tracks_popularity.iloc[i]['track_uri']))
-    sleep(0.1)
+    try:
+        new_features_list.append(sp.audio_features(new_tracks_popularity.iloc[i]['track_uri'])[0])
+        sleep(0.067)
+    except:
+        sleep(0.25)
 
 def is_empty(any_structure):
     if any_structure:
@@ -66,4 +69,7 @@ def is_empty(any_structure):
 
 new_features_list = [i for i in new_features_list if is_empty(i) == False]
 new_features_df = pd.DataFrame(new_features_list)
+new_features_df['artist'] = [i['artist'] for i in new_tracks_popularity for j in new_features_df if i['track_uri'] == j['uri']]
+new_features_df['genre'] = [i['artist_genres'] for i in new_tracks_popularity for j in new_features_df if i['track_uri'] == j['uri']]
+new_features_df['track_name'] = [i['track_name'] for i in new_tracks_popularity for j in new_features_df if i['track_uri'] == j['uri']]
 new_features_df.to_csv('../data/new_track_features.csv', index = False)

@@ -4,3 +4,4 @@ __pycache__
 *.p
 .flask_session
 .spotify_caches
+*.log

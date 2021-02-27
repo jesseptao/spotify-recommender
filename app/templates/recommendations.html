@@ -21,8 +21,8 @@
 </div>
 {% endfor %}
 <br>
-<p style="text-align:center;"> Give these recommendations a score: </p>
-<form method="POST" action="/submit">
+<p style="text-align:center;"> Give these recommendations a score to improve recommendations: </p>
+<form method="POST" action="/submit/{{id}}">
 	<center>
 	<select class="form-select" aria-label="Default select example" name="score">
 		<option selected>Select a score</option>
@@ -57,8 +57,8 @@
 </div>
 {% endfor %}
 <br>
-<p style="text-align:center;"> Give these recommendations a score: </p>
-<form method="POST" action="/submit_unfamiliar">
+<p style="text-align:center;"> Give these recommendations a score to improve recommendations: </p>
+<form method="POST" action="/submit_unfamiliar/{{id}}">
         <center>
         <select class="form-select" aria-label="Default select example" name="score">
                 <option selected>Select a score</option>
@@ -76,5 +76,12 @@
         <input type="submit" class="btn btn-success" value="Submit"></input>
         </center>
 </form>
+
+<br>
+
+<a class="btn btn-success btn-lg mx-auto d-block" href="/wait_more_recommendations/{{id}}" >
+        Get More Recommendations
+</a>
+
 
 {% endblock %}

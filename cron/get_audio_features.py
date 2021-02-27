@@ -27,7 +27,7 @@ new_tracks = new_tracks[new_tracks['popularity'] <= 70]
 new_features_list = []
 for i in tqdm(range(len(new_tracks))):
     new_features_list.append(sp.audio_features(new_tracks.iloc[i]['track_uri'])[0])
-    sleep(0.5)
+    sleep(0.067)
 
 def is_empty(any_structure):
     if any_structure:
@@ -38,4 +38,8 @@ def is_empty(any_structure):
 
 new_features_list = [i for i in new_features_list if is_empty(i) == False]
 new_features_df = pd.DataFrame(new_features_list)
+new_features_df = pd.merge(new_features_df, new_tracks, left_on = 'uri', right_on = 'track_uri')
+new_features_df = new_features_df.drop(['type', 'id', 'uri', 'track_href', 'analysis_url', 'duration_ms', 
+                      'time_signature', 'track_url', 'popularity'], 
+                    axis = 1)
 new_features_df.to_csv('../data/new_track_features.csv', index = False)

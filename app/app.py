@@ -63,21 +63,17 @@ def session_cache_path():
 
 def generate_user_tracks(user_tracks):
     user_df = pd.DataFrame(user_tracks['items'])
-    track_url = []
-    track_id = []
     track_name = []
     artist_uri = []
     artist_name = []
     track_uri = []
-    popularity = []
+    genre = []
 
     for i in range(len(user_df)):
-        track_url.append(user_df.iloc[i]['track']['href'])
         track_name.append(user_df.iloc[i]['track']['name'])
         track_uri.append('spotify:track:' + user_df.iloc[i]['track']['id'])
         artist_uri.append('spotify:artist:' + user_df.iloc[i]['track']['artists'][0]['id'])
         artist_name.append(user_df.iloc[i]['track']['artists'][0]['name'])
-    user_df['track_url'] = track_url
     user_df['track_uri'] = track_uri
     user_df['track_name'] = track_name
     user_df['artist_uri'] = artist_uri
@@ -88,9 +84,9 @@ def generate_user_tracks(user_tracks):
     spotify = spotipy.Spotify(auth_manager = auth_manager)
 
     for i in range(len(user_df)):
-        popularity.append(spotify.artist(user_df.iloc[i]['artist_uri'])['popularity'])
-        sleep(0.02) 
-    user_df['popularity'] = popularity
+        genre.append(spotify.artist(user_df.iloc[i]['artist_uri'])['genres'])
+        sleep(0.1) 
+    user_df['artist_genre'] = genre
 
     return user_df
 
@@ -121,31 +117,41 @@ def get_recommendations(user_id):
     user_features_list = []
     for i in range(len(user_df)):
         user_features_list.append(spotify.audio_features(user_df.iloc[i]['track_uri'])[0])
-        sleep(0.02)
+        sleep(0.1)
     user_features_list = [i for i in user_features_list if is_empty(i) == False]
     user_features_df = pd.DataFrame(user_features_list)
+    user_features_df = pd.merge(user_features_df, user_df, left_on = 'uri', right_on = 'track_uri')
+    user_features_df = user_features_df.drop(['type', 'id', 'uri', 'track_href', 'analysis_url', 'duration_ms', 
+                      'time_signature'], 
+                    axis = 1)
     combined_features_df = pd.concat([new_features_df, user_features_df])
     combined_features_df.reset_index(drop = True, inplace = True)
-    combined_features_df.drop(['type', 'id', 'duration_ms', 'time_signature', 'track_href',
-                  'analysis_url'], axis = 1, inplace = True)
     compare_df = combined_features_df[['danceability', 'energy', 'loudness', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo', 'mode']]
     mms = MinMaxScaler()
     compare_df_sc = mms.fit_transform(compare_df)
     compare_df_sc = pd.DataFrame(compare_df_sc, columns = compare_df.columns)
     distances = compute_distance(compare_df_sc, compare_df_sc)
-    distances_df = pd.DataFrame(distances.numpy(), index = combined_features_df['uri'], columns = combined_features_df['uri'])
-    distances_df.loc['score'] = distances_df.tail(len(user_features_list)).sum()
+    distances_df = pd.DataFrame(distances.numpy(), index = combined_features_df['track_uri'], columns = combined_features_df['track_uri'])
+    distances_df.loc['score'] = distances_df.tail(len(user_features_list)).sum() 
+    distances_df.loc['artist'] = combined_features_df['artist'].values
+    distances_df.loc['artist_uri'] = combined_features_df['artist_uri'].values
+    distances_df.loc['track_name'] = combined_features_df['track_name'].values
+    distances_df.loc['artist_genres'] = combined_features_df['artist_genres'].values
+    distances_df.loc['track_uri'] = combined_features_df['track_uri'].values
+    all_score_df = distances_df.loc[['score', 'artist', 'artist_uri', 'track_name', 'artist_genres', 'track_uri']].iloc[:, :-len(user_features_list)]
+    column_store = []
+    for _, values in all_score_df.iteritems():
+        column_store.append(values)
     similar_5 = distances_df.loc['score'][:-len(user_features_list)].sort_values()[0:5].index
     unsimilar_5 = distances_df.loc['score'][:-len(user_features_list)].sort_values(ascending = False)[0:5].index
     similar_track_names = []
     unsimilar_track_names = []
-    distances_df.loc['score'] = 0
     for i in similar_5:
         similar_track_names.append(spotify.track(i))
     for i in unsimilar_5:
         unsimilar_track_names.append(spotify.track(i))
 
-    return [similar_track_names, unsimilar_track_names]
+    return [similar_track_names, unsimilar_track_names, column_store]
 
 @app.route('/')
 def index():
@@ -215,19 +221,32 @@ def prepare_recommendations():
 @app.route('/recommendations/<job_key>', methods = ['GET'])
 def recommendations(job_key):
     job = Job.fetch(job_key, connection = conn)
-    job_ids_list = q.job_ids
     while not (job.is_finished):
-        if job_key in job_ids_list:
-            position = job_ids.index(job_key)
+        job_ids = q.job_ids
+        if len(job_ids) == 0:
+            position = 1
+        elif job.id in job_ids:
+            position = job_ids.index(job.id) + 1
         else:
-            position = 0
-        return render_template('prepare_recommendations.html', position = position + 1, id = job.id)
+            position = 1
+        return render_template('prepare_recommendations.html', position = position, id = job.id)
         sleep(2)
     results = job.result
-    return render_template('recommendations.html', result = results)
+    return render_template('recommendations.html', result = results, id = job.id)
 
-@app.route('/submit', methods=["GET", "POST"])
-def submit():
+@app.route('/wait_more_recommendations/<job_key>')
+def wait_more_recommendations(job_key):
+    job = Job.fetch(job_key, connection = conn)
+    return render_template('wait_more_recommendations.html', id = job.id)
+
+@app.route('/more_recommendations/<job_key>', methods = ['GET'])
+def more_recommendations(job_key):
+    job = Job.fetch(job_key, connection = conn)
+    results = job.result
+    return render_template('more_recommendations.html', result = results)
+
+@app.route('/submit/<job_key>', methods=["GET", "POST"])
+def submit(job_key):
     if request.method == "POST":
 
         cache_handler = spotipy.cache_handler.CacheFileHandler(cache_path=session_cache_path())
@@ -244,11 +263,11 @@ def submit():
         cur.execute("INSERT INTO similar_scores(user_id, scores) VALUES (%s, %s)", (user_id, score))
         mysql.connection.commit()
         cur.close()
-        return render_template('submit.html')
+        return render_template('submit.html', id = job_key)
     
-    return render_template('submit.html')
+    return render_template('submit.html', id = job_key)
 
-@app.route('/submit_unfamiliar', methods=["GET", "POST"])
+@app.route('/submit_unfamiliar/<job_key>', methods=["GET", "POST"])
 def submit_unfamiliar():
     if request.method == "POST":
 
@@ -266,9 +285,9 @@ def submit_unfamiliar():
         cur.execute("INSERT INTO unsimilar_score(user_id, scores) VALUES (%s, %s)", (user_id, score))
         mysql.connection.commit()
         cur.close()
-        return render_template('submit.html')
+        return render_template('submit.html', id = job_key)
     
-    return render_template('submit.html')
+    return render_template('submit.html', id = job_key)
 
 @app.errorhandler(500)
 def internal_error(error):
